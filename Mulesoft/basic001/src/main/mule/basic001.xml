@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="a9c763dd-ffb7-4f5d-8395-6ad84c5f6c82" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<flow name="basic001Flow" doc:id="f1cd1f86-0542-4dbf-981c-87609ff369de" >
+		<http:listener doc:name="GET /basicapi" doc:id="63f68c60-a89c-40b4-ac0d-bb4d851ad973" config-ref="HTTP_Listener_config" path="/basicapi" allowedMethods="GET"/>
+		<set-payload value='#["Hello" ++ (attributes.queryParams.name default "User")]' doc:name="Set Payload" doc:id="e9dd2688-95bb-4350-8438-bc5d097988e0" />
+		<logger level="INFO" doc:name="Logger" doc:id="f8c71ef0-ec36-4c92-b8d2-ed27dcf105af" />
+	</flow>
+</mule>

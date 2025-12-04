@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:batch="http://www.mulesoft.org/schema/mule/batch"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:salesforce-pub-sub="http://www.mulesoft.org/schema/mule/salesforce-pub-sub" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/salesforce-pub-sub http://www.mulesoft.org/schema/mule/salesforce-pub-sub/current/mule-salesforce-pub-sub.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/batch/current/mule-batch.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd">
+	<salesforce-pub-sub:pubsub-config name="Salesforce_PubSub_Config" doc:name="Salesforce PubSub Config" doc:id="3799e5ec-d9ff-4b0b-969d-a66a796fcc67" >
+		<salesforce-pub-sub:basic-connection username="somnath90_integrationorg@gmail.com" password="aiAgent@25" securityToken="ocOt3k6Q1cyxX98XoOecVzuA" />
+	</salesforce-pub-sub:pubsub-config>
+	<db:config name="Database_Config" doc:name="Database Config" doc:id="7a35eda8-ecd2-4ea5-a372-b16faa8e6ec1" >
+		<db:my-sql-connection host="localhost" port="3306" user="root" password="pass1234" database="mulesoft" />
+	</db:config>
+	<flow name="batchlearningFlow" doc:id="a3cf07eb-db6f-47d8-8520-de7f1402b602" >
+		<salesforce-pub-sub:subscribe-channel-listener channelName="/data/AccountChangeEvent" doc:name="Subscribe channel listener" doc:id="591b9674-fed2-4d4c-86e7-5b9e6b48e5aa" config-ref="Salesforce_PubSub_Config">
+			<salesforce-pub-sub:replay-option >
+				<salesforce-pub-sub:latest />
+			</salesforce-pub-sub:replay-option>
+		</salesforce-pub-sub:subscribe-channel-listener>
+		<ee:transform doc:name="Transform Message" doc:id="02a0929f-7256-4ba6-b036-092d5454e5be" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+[
+    {
+        recid:   payload.event.ChangeEventHeader.recordIds[0] default null,
+        atype: payload.event.Type default null,
+        name:    payload.event.Name default null
+    }
+]
+	]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<batch:job jobName="sql_db_upsert" doc:id="690565ba-a1b1-4697-865e-6c5b8b299bba" >
+			<batch:process-records >
+				<batch:step name="Batch_Step" doc:id="fde3e933-67d0-486f-ac95-dca7f86fccd1" >
+					<batch:aggregator doc:name="Batch Aggregator" doc:id="2dae1a0a-d7a1-43b3-8510-c2963419b8ed" size="5">
+						<db:bulk-insert doc:name="Bulk insert" doc:id="ad2a9bc3-0c35-4c1e-9b2a-6eefa3c7294c" config-ref="Database_Config">
+							<db:sql ><![CDATA[INSERT INTO account_info (recid, atype, name)
+VALUES (:recid, :atype, :name)
+ON DUPLICATE KEY UPDATE
+  type = IF(:atype IS NOT NULL, :atype, type),
+  name = IF(:name IS NOT NULL, :name, name);
+]]></db:sql>
+						</db:bulk-insert>
+					</batch:aggregator>
+				</batch:step>
+			</batch:process-records>
+			<batch:on-complete >
+				<logger level="INFO" doc:name="Logger" doc:id="64c65948-9de3-4457-ba72-5a6d8a8b3ee4" message="#[payload]" />
+			</batch:on-complete>
+		</batch:job>
+	</flow>
+</mule>
