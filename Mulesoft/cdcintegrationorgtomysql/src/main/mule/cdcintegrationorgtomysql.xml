@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd">
+	<salesforce:sfdc-config name="SalesforceAuraOrg_Config" doc:name="Salesforce Config" doc:id="71f99900-7ad0-4162-9ec3-109e60d3f289" >
+		<salesforce:basic-connection username="${salesforce.username}" securityToken="${salesforce.security_token}" password="${salesforce.password}"/>
+	</salesforce:sfdc-config>
+	<configuration-properties doc:name="Configuration properties" doc:id="32e3f9c1-884f-48e1-a6e7-3826b5881971" file="config.yaml" />
+	<db:config name="mysqlDatabase_Config" doc:name="Database Config" doc:id="a2d4e71a-dd60-4d43-8ef0-cdffd471c52f" >
+		<db:my-sql-connection host="127.0.0.1" port="3306" user="root" password="pass123" database="mulesoftdb" />
+	</db:config>
+	<flow name="cdcintegrationorgtomysqlFlow" doc:id="07ad2855-0a5b-4ab6-be97-ec253533eef3" >
+		<salesforce:subscribe-channel-listener doc:name="Subscribe channel listener" doc:id="8bcae7ff-2aff-416a-96d1-c87583a42de6" config-ref="SalesforceAuraOrg_Config" streamingChannel="/data/AccountChangeEvent"/>
+		<ee:transform doc:name="Transform Message" doc:id="54000f57-11ad-44d8-99ec-5165ec35c7be" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[
+%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="91218748-3d48-4702-bdaa-7501f542a252" message="#[payload]"/>
+		<db:insert doc:name="Upsert" doc:id="20e1ece7-77c2-4da9-b965-1cbcd173ad2d" config-ref="mysqlDatabase_Config">
+			<db:sql ><![CDATA[INSERT INTO account_billing (record_id, name, type)
+VALUES (:sfid, :name, :accType)
+ON DUPLICATE KEY UPDATE
+    name = IF(VALUES(name) IS NOT NULL, VALUES(name), name),
+    type = IF(VALUES(type) IS NOT NULL, VALUES(type), type);
+]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{
+	'sfid':payload.data.payload.ChangeEventHeader.recordIds[0],
+	'name':payload.data.payload.Name,
+	'accType':payload.data.payload.Type
+}]]]></db:input-parameters>
+		</db:insert>
+		<db:select doc:name="Select" doc:id="3fac091e-d7c0-4766-a9d7-921f113e2ddf" config-ref="mysqlDatabase_Config">
+			<db:sql ><![CDATA[SELECT record_id, name, type FROM account_billing]]></db:sql>
+		</db:select>
+		<ee:transform doc:name="Transform Message" doc:id="a43b865f-9187-478d-adfb-fb394cf16828" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="queryLog" doc:id="5d75798f-0ceb-41b3-b525-5936002690e9" message='Message: "My queried record payload: #[payload]"'/>
+	</flow>
+</mule>
+
+

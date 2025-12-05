@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<salesforce:sfdc-config name="Salesforce_Config" doc:name="Salesforce Config" doc:id="31cdfe40-02ab-42e6-b9e1-ba7ac5ff1691" >
+		<salesforce:basic-connection username="somnath1690@gmail.com" password="Debasree@16" securityToken="oiToE1r3AemQLdNhs3YkWeb3h" />
+	</salesforce:sfdc-config>
+	<salesforce:sfdc-config name="TargetConfig" doc:name="Salesforce Config" doc:id="ccb018b5-2fc2-403e-bc3c-f315fc824913" >
+		<salesforce:basic-connection username="somnath90_integrationorg@gmail.com" password="aiAgent@25" securityToken="G16Ptl5gpdLbgh6k48MGlaCW" />
+	</salesforce:sfdc-config>
+	<flow name="platformeventdemoprojectFlow" doc:id="2ee046e3-6247-4a93-a9c1-2bf9ea0f8940" >
+		<salesforce:subscribe-channel-listener streamingChannel="/event/LightningUni__MuleSource__e" doc:name="Subscribe Source Aura Org PE" doc:id="c4aaf550-443a-408d-b8dc-82559caef0b8" config-ref="Salesforce_Config"/>
+		<ee:transform doc:name="Transform Message" doc:id="240a094d-c5d3-4cef-b56b-dc4cb81ac64b" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+{
+	
+AccName__c : payload.data.payload.LightningUni__AccName__c,
+External_Account_Id__c :payload.data.payload.LightningUni__ExternalAcc__c
+
+}
+
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="ef08c702-c206-4410-8a3c-58cf018e4329" message="#[payload]"/>
+		<salesforce:publish-platform-event-message platformEventName="Mule__e" doc:name="PublishTarget Platform Event" doc:id="fb00b7ed-0c90-4536-8080-dc0de41aec8e" config-ref="TargetConfig">
+			<salesforce:platform-event-messages ><![CDATA[#[[payload]]]]></salesforce:platform-event-messages>
+		</salesforce:publish-platform-event-message>
+	</flow>
+</mule>
